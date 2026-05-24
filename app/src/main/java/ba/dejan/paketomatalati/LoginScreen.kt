@@ -1,0 +1,156 @@
+package ba.dejan.paketomatalati
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.painterResource
+import android.widget.Toast
+import ba.dejan.paketomatalati.ui.theme.Background
+import ba.dejan.paketomatalati.ui.theme.MainColor
+import ba.dejan.paketomatalati.ui.theme.SecondaryColor
+
+@Composable
+fun LoginScreen(
+    userPreferences: UserPreferences,
+    onLoginSuccess: () -> Unit
+) {
+    val context = LocalContext.current
+    var imeRadnika by remember { mutableStateOf("") }
+    var barCodeSifra by remember { mutableStateOf("") }
+    var sifraRadnika by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val scanner = remember { GmsBarcodeScanning.getClient(context) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Spacer(modifier = Modifier.height(38.dp))
+        Icon(
+            painter = painterResource(id = R.drawable.icon_view_in_ar),
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            tint = MainColor
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "PAKETOMAT ALATI",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = SecondaryColor,
+            modifier = Modifier.padding(bottom = 28.dp)
+        )
+        val fieldColors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MainColor,
+            unfocusedBorderColor = SecondaryColor,
+            focusedLabelColor = Color.Gray,
+            unfocusedLabelColor = Color.Gray,
+            cursorColor = SecondaryColor,
+            focusedTextColor = SecondaryColor,
+            unfocusedTextColor = SecondaryColor
+        )
+        Text(text = "Unesi svoje identifikacione podatke za pristup paketomatu.", fontSize = 14.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = imeRadnika,
+            onValueChange = { noviUnos ->
+                val bezNovogReda = noviUnos.replace("\n", "")
+                if (bezNovogReda.length <= 30){
+                    imeRadnika = bezNovogReda
+                }
+            },
+            label = { Text("Ime i prezime") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            colors = fieldColors
+        )
+        OutlinedTextField(
+            value = barCodeSifra,
+            onValueChange = { barCodeSifra = it },
+            label = { Text("QR šifra paketomata") },
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            singleLine = true,
+            colors = fieldColors,
+            trailingIcon = {
+                IconButton(onClick = {
+                    scanner.startScan()
+                        .addOnSuccessListener { barcode ->
+                            barcode.rawValue?.let { skeniraniKod ->
+                                barCodeSifra = skeniraniKod
+                            }
+                        }
+                }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.icon_qr_code_scanner),
+                        contentDescription = "Skeniraj QR kod",
+                        tint = SecondaryColor,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+        )
+        OutlinedTextField(
+            value = sifraRadnika,
+            onValueChange = { noviUnos ->
+                val samoBrojevi = noviUnos.filter {it.isDigit()}
+                if (samoBrojevi.length <= 20){
+                    sifraRadnika = samoBrojevi
+                }
+            },
+            label = { Text("Šifra") },
+            visualTransformation = VisualTransformation.None,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            singleLine = true,
+            colors = fieldColors,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            )
+        )
+        Button(
+            onClick = {
+                if (imeRadnika.isNotBlank() && barCodeSifra.isNotBlank() && sifraRadnika.isNotBlank()) {
+                    coroutineScope.launch {
+                        userPreferences.sacuvajPodatke(
+                            ime = imeRadnika,
+                            barCode = barCodeSifra,
+                            sifra = sifraRadnika
+                        )
+                        onLoginSuccess()
+                    }
+                } else {
+                    Toast.makeText(context, "Unesi sve podatke!", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(55.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MainColor,
+                contentColor = SecondaryColor
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+        ) {
+            Text(
+                text = "PRIJAVI SE",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
