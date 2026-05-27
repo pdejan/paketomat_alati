@@ -32,6 +32,8 @@
 -keep class com.google.android.gms.common.** { *; }
 -dontwarn com.google.android.gms.**
 -dontwarn com.google.mlkit.**
+-keep class com.google.mlkit.vision.barcode.** { *; }
+-dontwarn com.google.mlkit.vision.barcode.**
 # 3. DataStore Preferences
 -keep class androidx.datastore.preferences.** { *; }
 -dontwarn androidx.datastore.**

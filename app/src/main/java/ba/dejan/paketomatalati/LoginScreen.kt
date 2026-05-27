@@ -1,26 +1,31 @@
 package ba.dejan.paketomatalati
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.res.painterResource
-import android.widget.Toast
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -33,6 +38,32 @@ fun LoginScreen(
     var sifraRadnika by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
     val scanner = remember { GmsBarcodeScanning.getClient(context) }
+    val slikaLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { odabraniUri ->
+            try {
+                val image = InputImage.fromFilePath(context, odabraniUri)
+                val lokalniScanner = BarcodeScanning.getClient()
+                lokalniScanner.process(image)
+                    .addOnSuccessListener { barcodes ->
+                        if (barcodes.isNotEmpty()) {
+                            barcodes.first().rawValue?.let { skeniraniTekst ->
+                                barCodeSifra = skeniraniTekst
+                                Toast.makeText(context, "QR kod uspješno učitan!", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Nije pronađen QR kod na slici!", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Greška prilikom analize slike!", Toast.LENGTH_SHORT).show()
+                    }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Neuspješno otvaranje slike!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -88,20 +119,35 @@ fun LoginScreen(
             singleLine = true,
             colors = fieldColors,
             trailingIcon = {
-                IconButton(onClick = {
-                    scanner.startScan()
-                        .addOnSuccessListener { barcode ->
-                            barcode.rawValue?.let { skeniraniKod ->
-                                barCodeSifra = skeniraniKod
+                Row(
+                    modifier = Modifier.padding(end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        slikaLauncher.launch("image/*")
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.icon_insert_photo),
+                            contentDescription = "Učitaj iz galerije.",
+                            tint = SecondaryColor,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    IconButton(onClick = {
+                        scanner.startScan()
+                            .addOnSuccessListener { barcode ->
+                                barcode.rawValue?.let { skeniraniKod ->
+                                    barCodeSifra = skeniraniKod
+                                }
                             }
-                        }
-                }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.icon_qr_code_scanner),
-                        contentDescription = "Skeniraj QR kod",
-                        tint = SecondaryColor,
-                        modifier = Modifier.size(36.dp)
-                    )
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.icon_qr_code_scanner),
+                            contentDescription = "Skeniraj QR kod.",
+                            tint = SecondaryColor,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
                 }
             }
         )
