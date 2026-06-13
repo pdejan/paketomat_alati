@@ -26,7 +26,6 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.launch
-
 @Composable
 fun LoginScreen(
     userPreferences: UserPreferences

@@ -76,7 +76,6 @@ fun SettingsScreen(
                     Text("ODJAVI SE", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
-
         }
         Column(
             modifier = Modifier

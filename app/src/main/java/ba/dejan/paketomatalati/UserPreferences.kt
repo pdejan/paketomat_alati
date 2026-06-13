@@ -16,8 +16,6 @@ data class RadnikData(
     val barCodeSifra: String,
     val sifraRadnika: String
 )
-
-/** Stanje prijave: dok se DataStore učitava ([Ucitavanje]) ne znamo još da li je radnik prijavljen. */
 sealed interface RadnikStanje {
     data object Ucitavanje : RadnikStanje
     data object Odjavljen : RadnikStanje
@@ -38,8 +36,6 @@ class UserPreferences(private val context: Context) {
             try {
                 RadnikData(ime, CryptoManager.decrypt(barCode), CryptoManager.decrypt(sifra))
             } catch (e: Exception) {
-                // Šifrovani podaci se ne mogu pročitati (npr. nakon resetovanja
-                // Keystore ključa) -> tretiraj kao da radnik nije prijavljen.
                 null
             }
         } else {

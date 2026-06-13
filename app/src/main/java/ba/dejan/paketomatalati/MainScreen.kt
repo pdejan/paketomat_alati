@@ -276,8 +276,6 @@ fun BarcodeDialog(
         }
     }
 }
-
-/** Odmotava lanac [ContextWrapper]-a do [Activity], jer LocalContext nije uvijek Activity. */
 private fun Context.findActivity(): Activity? {
     var ctx: Context = this
     while (ctx is ContextWrapper) {
