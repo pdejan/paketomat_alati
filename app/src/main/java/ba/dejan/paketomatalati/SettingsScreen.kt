@@ -3,9 +3,7 @@ package ba.dejan.paketomatalati
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +29,7 @@ fun SettingsScreen(
         }
     }
     val coroutineScope = rememberCoroutineScope()
+    var showLogoutConfirm by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -64,11 +63,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            userPreferences.obrisiPodatke()
-                        }
-                    },
+                    onClick = { showLogoutConfirm = true },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(45.dp),
@@ -86,7 +81,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -101,5 +96,46 @@ fun SettingsScreen(
                 color = Color.Gray
             )
         }
+    }
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "Odjava",
+                    fontWeight = FontWeight.Bold,
+                    color = SecondaryColor
+                )
+            },
+            text = {
+                Text(
+                    "Odjava briše sve podatke korisnika. Nastavi?",
+                    color = SecondaryColor,
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutConfirm = false
+                        coroutineScope.launch {
+                            userPreferences.obrisiPodatke()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("ODJAVI SE", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirm = false }) {
+                    Text("ODUSTANI", color = Color.Gray)
+                }
+            }
+        )
     }
 }

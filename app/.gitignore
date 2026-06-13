@@ -4,9 +4,8 @@
 *.iws
 local.properties
 build/
-app/build/
-app/release/
-app/debug/
+release/
+debug/
 captures/
 .externalNativeBuild/
 .cxx/

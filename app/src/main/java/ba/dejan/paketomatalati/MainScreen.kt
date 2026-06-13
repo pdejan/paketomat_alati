@@ -1,6 +1,8 @@
 package ba.dejan.paketomatalati
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,8 +37,20 @@ fun MainScreen(radnikData: RadnikData) {
     var uneseniTekst by remember { mutableStateOf("") }
     var showLoginPopup by remember { mutableStateOf(false) }
     var showPackagePopup by remember { mutableStateOf(false) }
+    var showCheckDigitWarning by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+
+    val pokusajGenerisanja = {
+        when {
+            uneseniTekst.isBlank() ->
+                Toast.makeText(context, "Unesi broj pošiljke!", Toast.LENGTH_SHORT).show()
+            izgledaKaoS10(uneseniTekst) && !s10KontrolnaCifraValjana(uneseniTekst) ->
+                showCheckDigitWarning = true
+            else ->
+                showPackagePopup = true
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -53,7 +68,7 @@ fun MainScreen(radnikData: RadnikData) {
                 contentColor = SecondaryColor
             )
         ) {
-            Text("Prijava na paketomat", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("PRIJAVA NA PAKETOMAT", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Column(
             modifier = Modifier
@@ -82,11 +97,7 @@ fun MainScreen(radnikData: RadnikData) {
                 keyboardActions = KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
-                        if (uneseniTekst.isNotBlank()) {
-                            showPackagePopup = true
-                        } else {
-                            Toast.makeText(context, "Unesi broj pošiljke!", Toast.LENGTH_SHORT).show()
-                        }
+                        pokusajGenerisanja()
                     }
                 ),
                 label = { Text("Broj pošiljke") },
@@ -111,13 +122,7 @@ fun MainScreen(radnikData: RadnikData) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = {
-                    if (uneseniTekst.isNotBlank()) {
-                        showPackagePopup = true
-                    } else {
-                        Toast.makeText(context, "Unesi broj pošiljke!", Toast.LENGTH_SHORT).show()
-                    }
-                },
+                onClick = { pokusajGenerisanja() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp),
@@ -135,6 +140,7 @@ fun MainScreen(radnikData: RadnikData) {
             textZaKodiranje = radnikData.barCodeSifra,
             dodatniTekst = "Šifra: ${radnikData.sifraRadnika}",
             isQrCode = true,
+            secure = true,
             onDismiss = { showLoginPopup = false }
         )
     }
@@ -146,32 +152,79 @@ fun MainScreen(radnikData: RadnikData) {
             onDismiss = { showPackagePopup = false }
         )
     }
+    if (showCheckDigitWarning) {
+        AlertDialog(
+            onDismissRequest = { showCheckDigitWarning = false },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "Provjeri broj pošiljke",
+                    fontWeight = FontWeight.Bold,
+                    color = SecondaryColor
+                )
+            },
+            text = {
+                Text(
+                    "Kontrolna cifra se ne poklapa s ostatkom broja, moguća je greška u kucanju. Provjeri broj pošiljke prije nego što ga generišeš.",
+                    color = SecondaryColor,
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showCheckDigitWarning = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MainColor,
+                        contentColor = SecondaryColor
+                    )
+                ) {
+                    Text("ISPRAVI", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showCheckDigitWarning = false
+                    showPackagePopup = true
+                }) {
+                    Text("SVEJEDNO GENERIŠI", color = Color.Gray)
+                }
+            }
+        )
+    }
 }
 @Composable
 fun BarcodeDialog(
     textZaKodiranje: String,
     dodatniTekst: String,
     isQrCode: Boolean = false,
+    secure: Boolean = false,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
+    val window = LocalContext.current.findActivity()?.window
     val barcodeBitmap: ImageBitmap? = remember(textZaKodiranje, isQrCode) {
         if (isQrCode) generateQrCode(textZaKodiranje) else generateCode128(textZaKodiranje)
     }
-    DisposableEffect(Unit) {
-        val window = (context as Activity).window
-        val layoutParams = window.attributes
-        val originalBrightness = layoutParams.screenBrightness
-        layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
-        window.attributes = layoutParams
+    DisposableEffect(window) {
+        val originalBrightness = window?.attributes?.screenBrightness
+        window?.let {
+            it.attributes = it.attributes.apply {
+                screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+            }
+        }
         onDispose {
-            layoutParams.screenBrightness = originalBrightness
-            window.attributes = layoutParams
+            if (window != null && originalBrightness != null) {
+                window.attributes = window.attributes.apply {
+                    screenBrightness = originalBrightness
+                }
+            }
         }
     }
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            securePolicy = if (secure) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit
+        )
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -180,6 +233,7 @@ fun BarcodeDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .systemBarsPadding()
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
@@ -221,4 +275,14 @@ fun BarcodeDialog(
             }
         }
     }
+}
+
+/** Odmotava lanac [ContextWrapper]-a do [Activity], jer LocalContext nije uvijek Activity. */
+private fun Context.findActivity(): Activity? {
+    var ctx: Context = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
 }

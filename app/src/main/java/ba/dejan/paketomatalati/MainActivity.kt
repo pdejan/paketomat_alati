@@ -3,6 +3,7 @@ package ba.dejan.paketomatalati
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
@@ -24,22 +25,39 @@ import ba.dejan.paketomatalati.ui.theme.SecondaryColor
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         val userPreferences = UserPreferences(this)
         setContent {
             PaketomatAlatiTheme {
-                val radnikData by userPreferences.radnikDataFlow.collectAsState(initial = null)
+                val stanje by userPreferences.radnikStanjeFlow.collectAsState(initial = RadnikStanje.Ucitavanje)
                 Surface(color = Background) {
-                    if (radnikData == null) {
-                        LoginScreen(
-                            userPreferences = userPreferences,
-                            onLoginSuccess = {  }
+                    when (val trenutnoStanje = stanje) {
+                        is RadnikStanje.Ucitavanje -> SplashScreen()
+                        is RadnikStanje.Odjavljen -> LoginScreen(userPreferences = userPreferences)
+                        is RadnikStanje.Ulogovan -> UlogovaniInterfejs(
+                            radnikData = trenutnoStanje.data,
+                            userPreferences = userPreferences
                         )
-                    } else {
-                        UlogovaniInterfejs(radnikData = radnikData!!, userPreferences = userPreferences)
                     }
                 }
             }
         }
+    }
+}
+@Composable
+fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.icon_view_in_ar),
+            contentDescription = null,
+            tint = MainColor,
+            modifier = Modifier.size(100.dp)
+        )
     }
 }
 @Composable
@@ -49,11 +67,12 @@ fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences)
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .systemBarsPadding()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 48.dp, bottom = 16.dp),
+                .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

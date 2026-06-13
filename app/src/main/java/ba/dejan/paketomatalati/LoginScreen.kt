@@ -29,8 +29,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    userPreferences: UserPreferences,
-    onLoginSuccess: () -> Unit
+    userPreferences: UserPreferences
 ) {
     val context = LocalContext.current
     var imeRadnika by remember { mutableStateOf("") }
@@ -59,6 +58,9 @@ fun LoginScreen(
                     .addOnFailureListener {
                         Toast.makeText(context, "Greška prilikom analize slike!", Toast.LENGTH_SHORT).show()
                     }
+                    .addOnCompleteListener {
+                        lokalniScanner.close()
+                    }
             } catch (e: Exception) {
                 Toast.makeText(context, "Neuspješno otvaranje slike!", Toast.LENGTH_SHORT).show()
             }
@@ -68,6 +70,7 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background)
+            .systemBarsPadding()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -113,7 +116,7 @@ fun LoginScreen(
         )
         OutlinedTextField(
             value = barCodeSifra,
-            onValueChange = { barCodeSifra = it },
+            onValueChange = { barCodeSifra = it.replace("\n", "") },
             label = { Text("QR šifra paketomata") },
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             singleLine = true,
@@ -139,6 +142,9 @@ fun LoginScreen(
                                 barcode.rawValue?.let { skeniraniKod ->
                                     barCodeSifra = skeniraniKod
                                 }
+                            }
+                            .addOnFailureListener {
+                                Toast.makeText(context, "Skener nije dostupan. Pokušaj ponovo ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
                             }
                     }) {
                         Icon(
@@ -177,7 +183,6 @@ fun LoginScreen(
                             barCode = barCodeSifra,
                             sifra = sifraRadnika
                         )
-                        onLoginSuccess()
                     }
                 } else {
                     Toast.makeText(context, "Unesi sve podatke!", Toast.LENGTH_SHORT).show()
