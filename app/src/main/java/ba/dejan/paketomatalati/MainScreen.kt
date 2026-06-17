@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -215,28 +217,12 @@ fun BarcodeDialog(
     secure: Boolean = false,
     onDismiss: () -> Unit
 ) {
-    val window = LocalContext.current.findActivity()?.window
     val stanjeKoda by produceState<BarkodStanje>(BarkodStanje.Generisanje, textZaKodiranje, isQrCode) {
         value = BarkodStanje.Generisanje
         val bitmap = withContext(Dispatchers.Default) {
             if (isQrCode) generateQrCode(textZaKodiranje) else generateCode128(textZaKodiranje)
         }
         value = if (bitmap != null) BarkodStanje.Spremno(bitmap) else BarkodStanje.Greska
-    }
-    DisposableEffect(window) {
-        val originalBrightness = window?.attributes?.screenBrightness
-        window?.let {
-            it.attributes = it.attributes.apply {
-                screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
-            }
-        }
-        onDispose {
-            if (window != null && originalBrightness != null) {
-                window.attributes = window.attributes.apply {
-                    screenBrightness = originalBrightness
-                }
-            }
-        }
     }
     Dialog(
         onDismissRequest = onDismiss,
@@ -245,6 +231,26 @@ fun BarcodeDialog(
             securePolicy = if (secure) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit
         )
     ) {
+        // Osvjetljenje postavljamo na PROZOR DIJALOGA, ne na Activity prozor. Dijalog je
+        // poseban, neproziran prozor preko cijelog ekrana iznad Activityja, pa override na
+        // Activity prozoru sistem može preskočiti (obscured). Postavljanjem na sam dialog
+        // prozor garantujemo da barkod bude maksimalno svijetao za skener paketomata.
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        DisposableEffect(dialogWindow) {
+            val originalBrightness = dialogWindow?.attributes?.screenBrightness
+            dialogWindow?.let {
+                it.attributes = it.attributes.apply {
+                    screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+                }
+            }
+            onDispose {
+                if (dialogWindow != null && originalBrightness != null) {
+                    dialogWindow.attributes = dialogWindow.attributes.apply {
+                        screenBrightness = originalBrightness
+                    }
+                }
+            }
+        }
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Background
