@@ -147,7 +147,7 @@ fun MainScreen(radnikData: RadnikData) {
     if (showPackagePopup) {
         BarcodeDialog(
             textZaKodiranje = uneseniTekst,
-            dodatniTekst = "$uneseniTekst",
+            dodatniTekst = uneseniTekst,
             isQrCode = false,
             onDismiss = { showPackagePopup = false }
         )

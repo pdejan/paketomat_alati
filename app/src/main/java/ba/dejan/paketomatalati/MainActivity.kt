@@ -74,9 +74,11 @@ fun SplashScreen() {
         )
     }
 }
+private enum class Ekran { Glavni, Postavke }
+
 @Composable
 fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences) {
-    var trenutniEkran by remember { mutableStateOf(0) }
+    var trenutniEkran by remember { mutableStateOf(Ekran.Glavni) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -106,10 +108,10 @@ fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences)
                 )
             }
             IconButton(onClick = {
-                trenutniEkran = if (trenutniEkran == 0) 1 else 0
+                trenutniEkran = if (trenutniEkran == Ekran.Glavni) Ekran.Postavke else Ekran.Glavni
             }) {
                 Icon(
-                    painter = if (trenutniEkran == 0) painterResource(id = R.drawable.icon_settings) else painterResource(id = R.drawable.icon_arrow_back),
+                    painter = if (trenutniEkran == Ekran.Glavni) painterResource(id = R.drawable.icon_settings) else painterResource(id = R.drawable.icon_arrow_back),
                     contentDescription = "Navigacija",
                     tint = Color.Gray,
                     modifier = Modifier.size(32.dp)
@@ -118,8 +120,8 @@ fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences)
         }
         Box(modifier = Modifier.weight(1f)) {
             when (trenutniEkran) {
-                0 -> MainScreen(radnikData = radnikData)
-                1 -> SettingsScreen(radnikData = radnikData, userPreferences = userPreferences)
+                Ekran.Glavni -> MainScreen(radnikData = radnikData)
+                Ekran.Postavke -> SettingsScreen(radnikData = radnikData, userPreferences = userPreferences)
             }
         }
     }
