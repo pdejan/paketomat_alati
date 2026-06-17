@@ -28,6 +28,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalFocusManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
@@ -192,6 +194,11 @@ fun MainScreen(radnikData: RadnikData) {
         )
     }
 }
+private sealed interface BarkodStanje {
+    data object Generisanje : BarkodStanje
+    data class Spremno(val bitmap: ImageBitmap) : BarkodStanje
+    data object Greska : BarkodStanje
+}
 @Composable
 fun BarcodeDialog(
     textZaKodiranje: String,
@@ -201,8 +208,12 @@ fun BarcodeDialog(
     onDismiss: () -> Unit
 ) {
     val window = LocalContext.current.findActivity()?.window
-    val barcodeBitmap: ImageBitmap? = remember(textZaKodiranje, isQrCode) {
-        if (isQrCode) generateQrCode(textZaKodiranje) else generateCode128(textZaKodiranje)
+    val stanjeKoda by produceState<BarkodStanje>(BarkodStanje.Generisanje, textZaKodiranje, isQrCode) {
+        value = BarkodStanje.Generisanje
+        val bitmap = withContext(Dispatchers.Default) {
+            if (isQrCode) generateQrCode(textZaKodiranje) else generateCode128(textZaKodiranje)
+        }
+        value = if (bitmap != null) BarkodStanje.Spremno(bitmap) else BarkodStanje.Greska
     }
     DisposableEffect(window) {
         val originalBrightness = window?.attributes?.screenBrightness
@@ -238,18 +249,19 @@ fun BarcodeDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                if (barcodeBitmap != null) {
-                    Image(
-                        bitmap = barcodeBitmap,
-                        contentDescription = "Barkod / QR Kod",
-                        modifier = if (isQrCode) {
-                            Modifier.fillMaxWidth().aspectRatio(1f)
-                        } else {
-                            Modifier.fillMaxWidth().height(160.dp)
-                        }
-                    )
+                val kodModifier = if (isQrCode) {
+                    Modifier.fillMaxWidth().aspectRatio(1f)
                 } else {
-                    Text("Greška pri generisanju koda", color = SecondaryColor)
+                    Modifier.fillMaxWidth().height(160.dp)
+                }
+                when (val trenutnoStanje = stanjeKoda) {
+                    is BarkodStanje.Spremno -> Image(
+                        bitmap = trenutnoStanje.bitmap,
+                        contentDescription = "Barkod / QR Kod",
+                        modifier = kodModifier
+                    )
+                    is BarkodStanje.Generisanje -> Box(modifier = kodModifier)
+                    is BarkodStanje.Greska -> Text("Greška pri generisanju koda.", color = SecondaryColor)
                 }
                 Spacer(modifier = Modifier.height(48.dp))
                 Text(

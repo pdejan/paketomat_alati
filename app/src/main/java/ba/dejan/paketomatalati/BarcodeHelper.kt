@@ -7,19 +7,30 @@ import androidx.compose.ui.graphics.toArgb
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import com.google.zxing.common.BitMatrix
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
 fun generateCode128(text: String): ImageBitmap? =
-    generisiKod(text, BarcodeFormat.CODE_128, width = 900, height = 400)
+    generisiKod(text, BarcodeFormat.CODE_128, width = 1440, height = 400)
 
 fun generateQrCode(text: String): ImageBitmap? =
-    generisiKod(text, BarcodeFormat.QR_CODE, width = 600, height = 600)
+    generisiKod(
+        text, BarcodeFormat.QR_CODE, width = 1440, height = 1440,
+        hints = mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L)
+    )
 
-private fun generisiKod(text: String, format: BarcodeFormat, width: Int, height: Int): ImageBitmap? {
+private fun generisiKod(
+    text: String,
+    format: BarcodeFormat,
+    width: Int,
+    height: Int,
+    hints: Map<EncodeHintType, Any>? = null
+): ImageBitmap? {
     if (text.isBlank()) return null
     return try {
-        MultiFormatWriter().encode(text, format, width, height).toImageBitmap()
+        MultiFormatWriter().encode(text, format, width, height, hints).toImageBitmap()
     } catch (e: Exception) {
         null
     }
