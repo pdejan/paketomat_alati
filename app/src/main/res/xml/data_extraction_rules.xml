@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+   Data extraction rules for devices running API 31+.
+   Note: android:allowBackup="false" disables cloud/adb backup, but it does NOT
+   cover device-to-device transfer on API 31+ - only <device-transfer> below does.
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Encrypted radnik credentials - never send off-device. -->
+        <exclude domain="file" path="datastore/radnik_prefs.preferences_pb" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Same exclusion for phone-to-phone transfer (not covered by allowBackup). -->
+        <exclude domain="file" path="datastore/radnik_prefs.preferences_pb" />
     </device-transfer>
-    -->
 </data-extraction-rules>

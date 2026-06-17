@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   Backup rules for devices running API 24-30 (Auto Backup).
+   On API 31+ these rules are ignored in favour of data_extraction_rules.xml.
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Encrypted radnik credentials (AES/GCM, key bound to Android Keystore).
+         The ciphertext is useless off-device, but we exclude it anyway so it is
+         never copied off the device, even if android:allowBackup is ever set to true. -->
+    <exclude domain="file" path="datastore/radnik_prefs.preferences_pb" />
 </full-backup-content>
