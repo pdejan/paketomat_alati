@@ -119,8 +119,7 @@ fun MainScreen(radnikData: RadnikData) {
                 singleLine = true,
                 textStyle = TextStyle(
                     fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                //  textAlign = TextAlign.Center
+                    fontWeight = FontWeight.Bold
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MainColor,
@@ -170,7 +169,7 @@ fun MainScreen(radnikData: RadnikData) {
             containerColor = Color.White,
             title = {
                 Text(
-                    "Provjeri broj pošiljke",
+                    "Provjeri broj pošiljke!",
                     fontWeight = FontWeight.Bold,
                     color = SecondaryColor
                 )

@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "radnik_prefs")
@@ -46,7 +48,7 @@ class UserPreferences(private val context: Context) {
                 RadnikStanje.GreskaPodataka
             }
         }
-    }
+    }.flowOn(Dispatchers.Default) // dekripcija (Keystore) ne smije na glavni nit
     suspend fun sacuvajPodatke(ime: String, barCode: String, sifra: String) {
         context.dataStore.edit { preferences ->
             preferences[IME_RADNIKA] = ime
