@@ -19,6 +19,9 @@ data class RadnikData(
 sealed interface RadnikStanje {
     data object Ucitavanje : RadnikStanje
     data object Odjavljen : RadnikStanje
+    /** Postoje sačuvani podaci, ali ih nije moguće dekriptovati (npr. ključ iz Keystore-a
+     *  je nevažeći). Tretira se kao odjava uz čišćenje podataka i obavještenje korisnika. */
+    data object GreskaPodataka : RadnikStanje
     data class Ulogovan(val data: RadnikData) : RadnikStanje
 }
 class UserPreferences(private val context: Context) {
@@ -27,23 +30,22 @@ class UserPreferences(private val context: Context) {
         val BAR_CODE_SIFRA = stringPreferencesKey("bar_code_sifra")
         val SIFRA_RADNIKA = stringPreferencesKey("sifra_radnika")
     }
-    val radnikDataFlow: Flow<RadnikData?> = context.dataStore.data.map { preferences ->
+    val radnikStanjeFlow: Flow<RadnikStanje> = context.dataStore.data.map { preferences ->
         val ime = preferences[IME_RADNIKA]
         val barCode = preferences[BAR_CODE_SIFRA]
         val sifra = preferences[SIFRA_RADNIKA]
 
-        if (ime != null && barCode != null && sifra != null) {
-            try {
-                RadnikData(ime, CryptoManager.decrypt(barCode), CryptoManager.decrypt(sifra))
-            } catch (e: Exception) {
-                null
-            }
+        if (ime == null || barCode == null || sifra == null) {
+            RadnikStanje.Odjavljen
         } else {
-            null
+            try {
+                RadnikStanje.Ulogovan(
+                    RadnikData(ime, CryptoManager.decrypt(barCode), CryptoManager.decrypt(sifra))
+                )
+            } catch (e: Exception) {
+                RadnikStanje.GreskaPodataka
+            }
         }
-    }
-    val radnikStanjeFlow: Flow<RadnikStanje> = radnikDataFlow.map { data ->
-        if (data != null) RadnikStanje.Ulogovan(data) else RadnikStanje.Odjavljen
     }
     suspend fun sacuvajPodatke(ime: String, barCode: String, sifra: String) {
         context.dataStore.edit { preferences ->

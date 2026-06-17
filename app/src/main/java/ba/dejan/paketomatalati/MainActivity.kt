@@ -1,6 +1,7 @@
 package ba.dejan.paketomatalati
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import ba.dejan.paketomatalati.ui.theme.PaketomatAlatiTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -34,6 +36,18 @@ class MainActivity : ComponentActivity() {
                     when (val trenutnoStanje = stanje) {
                         is RadnikStanje.Ucitavanje -> SplashScreen()
                         is RadnikStanje.Odjavljen -> LoginScreen(userPreferences = userPreferences)
+                        is RadnikStanje.GreskaPodataka -> {
+                            val context = LocalContext.current
+                            LaunchedEffect(Unit) {
+                                Toast.makeText(
+                                    context,
+                                    "Sačuvani podaci se ne mogu pročitati. Unesi podatke ponovo.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                userPreferences.obrisiPodatke()
+                            }
+                            LoginScreen(userPreferences = userPreferences)
+                        }
                         is RadnikStanje.Ulogovan -> UlogovaniInterfejs(
                             radnikData = trenutnoStanje.data,
                             userPreferences = userPreferences
