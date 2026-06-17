@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import ba.dejan.paketomatalati.ui.theme.Background
@@ -60,7 +61,14 @@ fun MainScreen(radnikData: RadnikData) {
             .padding(horizontal = 24.dp, vertical = 8.dp)
     ) {
         Button(
-            onClick = { showLoginPopup = true },
+            onClick = {
+                val activity = context.findActivity() as? FragmentActivity
+                if (activity != null) {
+                    zatraziAutentifikaciju(activity) { showLoginPopup = true }
+                } else {
+                    showLoginPopup = true
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp)
