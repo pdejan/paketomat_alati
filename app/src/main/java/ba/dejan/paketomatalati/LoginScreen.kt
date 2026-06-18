@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.sp
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
+import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -36,6 +38,49 @@ fun LoginScreen(
     var sifraRadnika by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
     val scanner = remember { GmsBarcodeScanning.getClient(context) }
+    var skenerSePriprema by remember { mutableStateOf(false) }
+
+    fun pokreniSkeniranje() {
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                barcode.rawValue?.let { skeniraniKod ->
+                    barCodeSifra = skeniraniKod
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Skener nije dostupan. Pokušaj ponovo ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
+            }
+    }
+
+    fun skenirajIliPripremiSkener() {
+        if (skenerSePriprema) return
+        val moduleInstall = ModuleInstall.getClient(context)
+        moduleInstall.areModulesAvailable(scanner)
+            .addOnSuccessListener { rezultat ->
+                if (rezultat.areModulesAvailable()) {
+                    pokreniSkeniranje()
+                } else {
+                    skenerSePriprema = true
+                    Toast.makeText(context, "Preuzimanje skenera, ovo može potrajati nekoliko sekundi…", Toast.LENGTH_LONG).show()
+                    val zahtjev = ModuleInstallRequest.newBuilder()
+                        .addApi(scanner)
+                        .build()
+                    moduleInstall.installModules(zahtjev)
+                        .addOnSuccessListener {
+                            skenerSePriprema = false
+                            pokreniSkeniranje()
+                        }
+                        .addOnFailureListener {
+                            skenerSePriprema = false
+                            Toast.makeText(context, "Skener se ne može preuzeti. Provjeri internet konekciju ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
+                        }
+                }
+            }
+            .addOnFailureListener {
+                // Ne možemo provjeriti dostupnost (npr. nema Google Play Services) — probaj direktno.
+                pokreniSkeniranje()
+            }
+    }
     val slikaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -135,23 +180,24 @@ fun LoginScreen(
                             modifier = Modifier.size(36.dp)
                         )
                     }
-                    IconButton(onClick = {
-                        scanner.startScan()
-                            .addOnSuccessListener { barcode ->
-                                barcode.rawValue?.let { skeniraniKod ->
-                                    barCodeSifra = skeniraniKod
-                                }
-                            }
-                            .addOnFailureListener {
-                                Toast.makeText(context, "Skener nije dostupan. Pokušaj ponovo ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
-                            }
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.icon_qr_code_scanner),
-                            contentDescription = "Skeniraj QR kod.",
-                            tint = SecondaryColor,
-                            modifier = Modifier.size(36.dp)
-                        )
+                    IconButton(
+                        onClick = { skenirajIliPripremiSkener() },
+                        enabled = !skenerSePriprema
+                    ) {
+                        if (skenerSePriprema) {
+                            CircularProgressIndicator(
+                                color = SecondaryColor,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.icon_qr_code_scanner),
+                                contentDescription = "Skeniraj QR kod.",
+                                tint = SecondaryColor,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
                     }
                 }
             }
