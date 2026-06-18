@@ -22,8 +22,10 @@ import androidx.compose.ui.unit.sp
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
+import com.google.android.gms.common.moduleinstall.InstallStatusListener
 import com.google.android.gms.common.moduleinstall.ModuleInstall
 import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
+import com.google.android.gms.common.moduleinstall.ModuleInstallStatusUpdate
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -62,22 +64,45 @@ fun LoginScreen(
                 } else {
                     skenerSePriprema = true
                     Toast.makeText(context, "Preuzimanje skenera, ovo može potrajati nekoliko sekundi…", Toast.LENGTH_LONG).show()
+                    lateinit var statusListener: InstallStatusListener
+                    val prijaviGreskuPripreme = {
+                        skenerSePriprema = false
+                        moduleInstall.unregisterListener(statusListener)
+                        Toast.makeText(context, "Skener se ne može preuzeti. Provjeri internet konekciju ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
+                    }
+                    statusListener = object : InstallStatusListener {
+                        override fun onInstallStatusUpdated(status: ModuleInstallStatusUpdate) {
+                            when (status.installState) {
+                                ModuleInstallStatusUpdate.InstallState.STATE_COMPLETED -> {
+                                    skenerSePriprema = false
+                                    moduleInstall.unregisterListener(this)
+                                    pokreniSkeniranje()
+                                }
+                                ModuleInstallStatusUpdate.InstallState.STATE_FAILED,
+                                ModuleInstallStatusUpdate.InstallState.STATE_CANCELED -> {
+                                    prijaviGreskuPripreme()
+                                }
+                            }
+                        }
+                    }
                     val zahtjev = ModuleInstallRequest.newBuilder()
                         .addApi(scanner)
+                        .setListener(statusListener)
                         .build()
                     moduleInstall.installModules(zahtjev)
-                        .addOnSuccessListener {
-                            skenerSePriprema = false
-                            pokreniSkeniranje()
+                        .addOnSuccessListener { odgovor ->
+                            if (odgovor.areModulesAlreadyInstalled()) {
+                                skenerSePriprema = false
+                                moduleInstall.unregisterListener(statusListener)
+                                pokreniSkeniranje()
+                            }
                         }
                         .addOnFailureListener {
-                            skenerSePriprema = false
-                            Toast.makeText(context, "Skener se ne može preuzeti. Provjeri internet konekciju ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
+                            prijaviGreskuPripreme()
                         }
                 }
             }
             .addOnFailureListener {
-                // Ne možemo provjeriti dostupnost (npr. nema Google Play Services) — probaj direktno.
                 pokreniSkeniranje()
             }
     }
