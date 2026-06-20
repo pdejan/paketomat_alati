@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.window.SecureFlagPolicy
 import androidx.compose.ui.text.font.FontWeight
@@ -25,7 +26,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.TextStyle
-import android.widget.Toast
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.ImeAction
@@ -36,24 +36,23 @@ import kotlinx.coroutines.withContext
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
+import java.util.Locale
 
 @Composable
 fun MainScreen(radnikData: RadnikData) {
     var uneseniTekst by remember { mutableStateOf("") }
     var showLoginPopup by remember { mutableStateOf(false) }
     var showPackagePopup by remember { mutableStateOf(false) }
-    var showCheckDigitWarning by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val jeS10BrojValjan = s10BrojValjan(uneseniTekst)
+    val unosImaGresku = uneseniTekst.length == 13 && !jeS10BrojValjan
+    val bojaIspravnogUnosa = Color(0xFF2E7D32)
 
     val pokusajGenerisanja = {
-        when {
-            uneseniTekst.isBlank() ->
-                Toast.makeText(context, "Unesi broj pošiljke!", Toast.LENGTH_SHORT).show()
-            izgledaKaoS10(uneseniTekst) && !s10KontrolnaCifraValjana(uneseniTekst) ->
-                showCheckDigitWarning = true
-            else ->
-                showPackagePopup = true
+        if (jeS10BrojValjan) {
+            focusManager.clearFocus()
+            showPackagePopup = true
         }
     }
 
@@ -97,8 +96,11 @@ fun MainScreen(radnikData: RadnikData) {
             OutlinedTextField(
                 value = uneseniTekst,
                 onValueChange = { noviUnos ->
-                    if (noviUnos.length <= 13) {
-                        uneseniTekst = noviUnos.uppercase()
+                    val normalizovanUnos = noviUnos
+                        .filterNot { it.isWhitespace() }
+                        .uppercase(Locale.ROOT)
+                    if (normalizovanUnos.length <= 13) {
+                        uneseniTekst = normalizovanUnos
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -107,12 +109,34 @@ fun MainScreen(radnikData: RadnikData) {
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        pokusajGenerisanja()
-                    }
+                    onDone = { pokusajGenerisanja() }
                 ),
                 label = { Text("Broj pošiljke") },
+                placeholder = {
+                    Text(
+                        text = "EE123456785BA",
+                        color = Color.Gray.copy(alpha = 0.2f),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                trailingIcon = {
+                    when {
+                        jeS10BrojValjan -> Icon(
+                            painter = painterResource(R.drawable.icon_check_circle),
+                            contentDescription = "Ispravan broj pošiljke",
+                            tint = bojaIspravnogUnosa,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        uneseniTekst.isNotEmpty() -> Text(
+                            text = "${uneseniTekst.length}/13",
+                            color = if (unosImaGresku) MaterialTheme.colorScheme.error else Color.Gray,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                },
+                isError = unosImaGresku,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(85.dp),
@@ -122,18 +146,32 @@ fun MainScreen(radnikData: RadnikData) {
                     fontWeight = FontWeight.Bold
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MainColor,
-                    unfocusedBorderColor = SecondaryColor,
-                    focusedLabelColor = Color.Gray,
-                    unfocusedLabelColor = Color.Gray,
-                    cursorColor = SecondaryColor,
+                    focusedBorderColor = if (jeS10BrojValjan) bojaIspravnogUnosa else MainColor,
+                    unfocusedBorderColor = if (jeS10BrojValjan) bojaIspravnogUnosa else SecondaryColor,
+                    focusedLabelColor = if (jeS10BrojValjan) bojaIspravnogUnosa else Color.Gray,
+                    unfocusedLabelColor = if (jeS10BrojValjan) bojaIspravnogUnosa else Color.Gray,
+                    cursorColor = if (jeS10BrojValjan) bojaIspravnogUnosa else SecondaryColor,
                     focusedTextColor = SecondaryColor,
                     unfocusedTextColor = SecondaryColor
                 )
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (unosImaGresku) {
+                    Text(
+                        text = "Neispravan broj. Provjeri broj pošiljke.",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp
+                    )
+                }
+            }
             Button(
                 onClick = { pokusajGenerisanja() },
+                enabled = jeS10BrojValjan,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp),
@@ -161,45 +199,6 @@ fun MainScreen(radnikData: RadnikData) {
             dodatniTekst = uneseniTekst,
             isQrCode = false,
             onDismiss = { showPackagePopup = false }
-        )
-    }
-    if (showCheckDigitWarning) {
-        AlertDialog(
-            onDismissRequest = { showCheckDigitWarning = false },
-            containerColor = Color.White,
-            title = {
-                Text(
-                    "Provjeri broj pošiljke!",
-                    fontWeight = FontWeight.Bold,
-                    color = SecondaryColor
-                )
-            },
-            text = {
-                Text(
-                    "Kontrolna cifra se ne poklapa s ostatkom broja, moguća je greška u kucanju. Provjeri broj pošiljke prije nego što ga generišeš.",
-                    color = SecondaryColor,
-                    fontSize = 16.sp
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showCheckDigitWarning = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MainColor,
-                        contentColor = SecondaryColor
-                    )
-                ) {
-                    Text("ISPRAVI", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showCheckDigitWarning = false
-                    showPackagePopup = true
-                }) {
-                    Text("SVEJEDNO GENERIŠI", color = Color.Gray)
-                }
-            }
         )
     }
 }
@@ -230,10 +229,6 @@ fun BarcodeDialog(
             securePolicy = if (secure) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit
         )
     ) {
-        // Osvjetljenje postavljamo na PROZOR DIJALOGA, ne na Activity prozor. Dijalog je
-        // poseban, neproziran prozor preko cijelog ekrana iznad Activityja, pa override na
-        // Activity prozoru sistem može preskočiti (obscured). Postavljanjem na sam dialog
-        // prozor garantujemo da barkod bude maksimalno svijetao za skener paketomata.
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         DisposableEffect(dialogWindow) {
             val originalBrightness = dialogWindow?.attributes?.screenBrightness

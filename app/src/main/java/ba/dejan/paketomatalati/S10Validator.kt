@@ -9,13 +9,16 @@ package ba.dejan.paketomatalati
  */
 private val S10_REGEX = Regex("^[A-Z]{2}[0-9]{9}[A-Z]{2}$")
 
-/** Da li unos izgleda kao S10 broj pošiljke (2 slova + 9 cifara + 2 slova). */
+/** Dali unos izgleda kao S10 broj pošiljke (2 slova + 9 cifara + 2 slova). */
 fun izgledaKaoS10(broj: String): Boolean = S10_REGEX.matches(broj)
+
+/** Potpuna provjera S10 formata i kontrolne cifre. */
+fun s10BrojValjan(broj: String): Boolean =
+    izgledaKaoS10(broj) && s10KontrolnaCifraValjana(broj)
 
 /**
  * Provjerava kontrolnu cifru po UPU S10 standardu. Vraća true ako se 9. cifra
  * poklapa sa vrijednošću izračunatom iz prethodnih 8 cifara serijskog broja.
- * Pretpostavlja da [broj] već zadovoljava [izgledaKaoS10].
  */
 fun s10KontrolnaCifraValjana(broj: String): Boolean {
     val cifre = broj.filter { it.isDigit() }

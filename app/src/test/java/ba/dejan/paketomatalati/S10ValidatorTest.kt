@@ -21,6 +21,21 @@ class S10ValidatorTest {
     }
 
     @Test
+    fun potpunaValidacija_prihvataSamoIspravanS10() {
+        assertTrue(s10BrojValjan("RR123456785BA"))
+
+        listOf(
+            "RR12345678BA",   // 12 znakova
+            "RR123456785B",   // nedostaje završno slovo
+            "R1123456785BA",  // cifra u oznaci usluge
+            "RR12345A785BA",  // slovo u numeričkom dijelu
+            "RR123456784BA"   // pogrešna kontrolna cifra
+        ).forEach { broj ->
+            assertFalse("Očekivano je da $broj bude odbijen", s10BrojValjan(broj))
+        }
+    }
+
+    @Test
     fun kontrolnaCifra_valjanaZaIspravanBroj() {
         // serijski 12345678 -> kontrolna 5
         assertTrue(s10KontrolnaCifraValjana("RR123456785BA"))
