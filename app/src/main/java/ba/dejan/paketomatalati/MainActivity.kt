@@ -73,7 +73,6 @@ fun SplashScreen() {
     }
 }
 private enum class Ekran { Glavni, Postavke }
-
 @Composable
 fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences) {
     var trenutniEkran by remember { mutableStateOf(Ekran.Glavni) }

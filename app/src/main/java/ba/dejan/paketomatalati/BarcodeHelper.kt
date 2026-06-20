@@ -20,7 +20,6 @@ fun generateQrCode(text: String): ImageBitmap? =
         text, BarcodeFormat.QR_CODE, width = 1440, height = 1440,
         hints = mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L)
     )
-
 private fun generisiKod(
     text: String,
     format: BarcodeFormat,
@@ -35,7 +34,6 @@ private fun generisiKod(
         null
     }
 }
-
 private fun BitMatrix.toImageBitmap(): ImageBitmap {
     val pixels = IntArray(width * height)
     val bojaPozadine = Background.toArgb()

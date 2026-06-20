@@ -1,12 +1,15 @@
 package ba.dejan.paketomatalati
 
 import android.net.Uri
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,19 +44,29 @@ fun LoginScreen(
     val coroutineScope = rememberCoroutineScope()
     val scanner = remember { GmsBarcodeScanning.getClient(context) }
     var skenerSePriprema by remember { mutableStateOf(false) }
-
+    val activityWindow = context.findActivity()?.window
+    DisposableEffect(activityWindow) {
+        val secureFlag = WindowManager.LayoutParams.FLAG_SECURE
+        val secureFlagJeVecBioPostavljen =
+            activityWindow?.attributes?.flags?.and(secureFlag) != 0
+        activityWindow?.addFlags(secureFlag)
+        onDispose {
+            if (!secureFlagJeVecBioPostavljen) {
+                activityWindow?.clearFlags(secureFlag)
+            }
+        }
+    }
     fun pokreniSkeniranje() {
         scanner.startScan()
             .addOnSuccessListener { barcode ->
                 barcode.rawValue?.let { skeniraniKod ->
-                    barCodeSifra = skeniraniKod
+                    barCodeSifra = normalizujQrPayload(skeniraniKod)
                 }
             }
             .addOnFailureListener {
                 Toast.makeText(context, "Skener nije dostupan. Pokušaj ponovo ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
             }
     }
-
     fun skenirajIliPripremiSkener() {
         if (skenerSePriprema) return
         val moduleInstall = ModuleInstall.getClient(context)
@@ -117,7 +130,7 @@ fun LoginScreen(
                     .addOnSuccessListener { barcodes ->
                         if (barcodes.isNotEmpty()) {
                             barcodes.first().rawValue?.let { skeniraniTekst ->
-                                barCodeSifra = skeniraniTekst
+                                barCodeSifra = normalizujQrPayload(skeniraniTekst)
                                 Toast.makeText(context, "QR kod uspješno učitan!", Toast.LENGTH_SHORT).show()
                             }
                         } else {
@@ -140,6 +153,8 @@ fun LoginScreen(
             .fillMaxSize()
             .background(Background)
             .systemBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -185,7 +200,7 @@ fun LoginScreen(
         )
         OutlinedTextField(
             value = barCodeSifra,
-            onValueChange = { barCodeSifra = it.replace("\n", "") },
+            onValueChange = { barCodeSifra = normalizujQrPayload(it) },
             label = { Text("QR šifra paketomata") },
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             singleLine = true,

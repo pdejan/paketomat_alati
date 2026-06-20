@@ -36,7 +36,6 @@ import kotlinx.coroutines.withContext
 import ba.dejan.paketomatalati.ui.theme.Background
 import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
-import java.util.Locale
 
 @Composable
 fun MainScreen(radnikData: RadnikData) {
@@ -97,8 +96,7 @@ fun MainScreen(radnikData: RadnikData) {
                 value = uneseniTekst,
                 onValueChange = { noviUnos ->
                     val normalizovanUnos = noviUnos
-                        .filterNot { it.isWhitespace() }
-                        .uppercase(Locale.ROOT)
+                        .let(::normalizujS10Unos)
                     if (normalizovanUnos.length <= 13) {
                         uneseniTekst = normalizovanUnos
                     }
@@ -296,7 +294,7 @@ fun BarcodeDialog(
         }
     }
 }
-private fun Context.findActivity(): Activity? {
+internal fun Context.findActivity(): Activity? {
     var ctx: Context = this
     while (ctx is ContextWrapper) {
         if (ctx is Activity) return ctx

@@ -48,7 +48,7 @@ class UserPreferences(private val context: Context) {
                 RadnikStanje.GreskaPodataka
             }
         }
-    }.flowOn(Dispatchers.Default) // dekripcija (Keystore) ne smije na glavni nit
+    }.flowOn(Dispatchers.Default)
     suspend fun sacuvajPodatke(ime: String, barCode: String, sifra: String) {
         context.dataStore.edit { preferences ->
             preferences[IME_RADNIKA] = ime
