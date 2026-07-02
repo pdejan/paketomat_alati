@@ -76,7 +76,8 @@ fun MainScreen(radnikData: RadnikData) {
             colors = ButtonDefaults.buttonColors(
                 containerColor = MainColor,
                 contentColor = SecondaryColor
-            )
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
             Text("PRIJAVA NA PAKETOMAT", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
@@ -176,7 +177,8 @@ fun MainScreen(radnikData: RadnikData) {
                 colors = ButtonDefaults.buttonColors(
                     containerColor = SecondaryColor,
                     contentColor = Background
-                )
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 Text("GENERIŠI BARKOD", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
@@ -286,7 +288,8 @@ fun BarcodeDialog(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MainColor,
                         contentColor = SecondaryColor
-                    )
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Text("ZATVORI", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }

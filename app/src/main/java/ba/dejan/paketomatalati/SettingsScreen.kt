@@ -71,7 +71,8 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Red,
                         contentColor = Color.White
-                    )
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Text("ODJAVI SE", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -125,7 +126,8 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Red,
                         contentColor = Color.White
-                    )
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Text("ODJAVI SE", fontWeight = FontWeight.Bold)
                 }
