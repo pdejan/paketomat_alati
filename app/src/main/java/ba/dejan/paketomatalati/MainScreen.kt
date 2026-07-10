@@ -38,18 +38,30 @@ import ba.dejan.paketomatalati.ui.theme.MainColor
 import ba.dejan.paketomatalati.ui.theme.SecondaryColor
 
 @Composable
-fun MainScreen(radnikData: RadnikData) {
+fun MainScreen(
+    radnikData: RadnikData,
+    s10ValidacijaUkljucena: Boolean = true
+) {
     var uneseniTekst by remember { mutableStateOf("") }
+    var neispravanGenerickiPokusaj by remember { mutableStateOf(false) }
     var showLoginPopup by remember { mutableStateOf(false) }
     var showPackagePopup by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val jeS10BrojValjan = s10BrojValjan(uneseniTekst)
-    val unosImaGresku = uneseniTekst.length == 13 && !jeS10BrojValjan
+    val unosJeValjanZaGenerisanje = barkodUnosValjan(
+        uneseniTekst,
+        s10ValidacijaUkljucena
+    )
+    val unosImaGresku = if (s10ValidacijaUkljucena) {
+        uneseniTekst.length == 13 && !unosJeValjanZaGenerisanje
+    } else {
+        neispravanGenerickiPokusaj
+    }
     val bojaIspravnogUnosa = Color(0xFF2E7D32)
+    val s10UnosJeValjan = s10ValidacijaUkljucena && unosJeValjanZaGenerisanje
 
     val pokusajGenerisanja = {
-        if (jeS10BrojValjan) {
+        if (unosJeValjanZaGenerisanje) {
             focusManager.clearFocus()
             showPackagePopup = true
         }
@@ -88,22 +100,39 @@ fun MainScreen(radnikData: RadnikData) {
                 .offset(y = (-60).dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val trenutnaTastatura = when {
-                uneseniTekst.length < 2 -> KeyboardType.Text
-                uneseniTekst.length < 11 -> KeyboardType.Number
-                else -> KeyboardType.Text
+            val trenutnaTastatura = if (s10ValidacijaUkljucena) {
+                when {
+                    uneseniTekst.length < 2 -> KeyboardType.Text
+                    uneseniTekst.length < 11 -> KeyboardType.Number
+                    else -> KeyboardType.Text
+                }
+            } else {
+                KeyboardType.Text
             }
             OutlinedTextField(
                 value = uneseniTekst,
                 onValueChange = { noviUnos ->
-                    val normalizovanUnos = noviUnos
-                        .let(::normalizujS10Unos)
-                    if (normalizovanUnos.length <= 13) {
-                        uneseniTekst = normalizovanUnos
+                    if (s10ValidacijaUkljucena) {
+                        val normalizovanUnos = normalizujS10Unos(noviUnos)
+                        if (normalizovanUnos.length <= 13) {
+                            uneseniTekst = normalizovanUnos
+                        }
+                        neispravanGenerickiPokusaj = false
+                    } else {
+                        val stanjeUnosa = obradiGenerickiBarkodUnos(
+                            trenutniUnos = uneseniTekst,
+                            noviUnos = noviUnos
+                        )
+                        uneseniTekst = stanjeUnosa.vrijednost
+                        neispravanGenerickiPokusaj = stanjeUnosa.neispravanPokusaj
                     }
                 },
                 keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
+                    capitalization = if (s10ValidacijaUkljucena) {
+                        KeyboardCapitalization.Characters
+                    } else {
+                        KeyboardCapitalization.None
+                    },
                     keyboardType = trenutnaTastatura,
                     imeAction = ImeAction.Done
                 ),
@@ -111,29 +140,41 @@ fun MainScreen(radnikData: RadnikData) {
                     onDone = { pokusajGenerisanja() }
                 ),
                 label = { Text("Broj pošiljke") },
-                placeholder = {
-                    Text(
-                        text = "EE123456785BA",
-                        color = Color.Gray.copy(alpha = 0.2f),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                trailingIcon = {
-                    when {
-                        jeS10BrojValjan -> Icon(
-                            painter = painterResource(R.drawable.icon_check_circle),
-                            contentDescription = "Ispravan broj pošiljke",
-                            tint = bojaIspravnogUnosa,
-                            modifier = Modifier.size(26.dp)
-                        )
-                        uneseniTekst.isNotEmpty() -> Text(
-                            text = "${uneseniTekst.length}/13",
-                            color = if (unosImaGresku) MaterialTheme.colorScheme.error else Color.Gray,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
+                placeholder = if (s10ValidacijaUkljucena) {
+                    {
+                        Text(
+                            text = "EE123456785BA",
+                            color = Color.Gray.copy(alpha = 0.2f),
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+                } else {
+                    null
+                },
+                trailingIcon = if (s10ValidacijaUkljucena) {
+                    {
+                        when {
+                            unosJeValjanZaGenerisanje -> Icon(
+                                painter = painterResource(R.drawable.icon_check_circle),
+                                contentDescription = "Ispravan broj pošiljke",
+                                tint = bojaIspravnogUnosa,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            uneseniTekst.isNotEmpty() -> Text(
+                                text = "${uneseniTekst.length}/13",
+                                color = if (unosImaGresku) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    Color.Gray
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                } else {
+                    null
                 },
                 isError = unosImaGresku,
                 modifier = Modifier
@@ -145,11 +186,11 @@ fun MainScreen(radnikData: RadnikData) {
                     fontWeight = FontWeight.Bold
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (jeS10BrojValjan) bojaIspravnogUnosa else MainColor,
-                    unfocusedBorderColor = if (jeS10BrojValjan) bojaIspravnogUnosa else SecondaryColor,
-                    focusedLabelColor = if (jeS10BrojValjan) bojaIspravnogUnosa else Color.Gray,
-                    unfocusedLabelColor = if (jeS10BrojValjan) bojaIspravnogUnosa else Color.Gray,
-                    cursorColor = if (jeS10BrojValjan) bojaIspravnogUnosa else SecondaryColor,
+                    focusedBorderColor = if (s10UnosJeValjan) bojaIspravnogUnosa else MainColor,
+                    unfocusedBorderColor = if (s10UnosJeValjan) bojaIspravnogUnosa else SecondaryColor,
+                    focusedLabelColor = if (s10UnosJeValjan) bojaIspravnogUnosa else Color.Gray,
+                    unfocusedLabelColor = if (s10UnosJeValjan) bojaIspravnogUnosa else Color.Gray,
+                    cursorColor = if (s10UnosJeValjan) bojaIspravnogUnosa else SecondaryColor,
                     focusedTextColor = SecondaryColor,
                     unfocusedTextColor = SecondaryColor
                 )
@@ -162,7 +203,11 @@ fun MainScreen(radnikData: RadnikData) {
             ) {
                 if (unosImaGresku) {
                     Text(
-                        text = "Neispravan broj. Provjeri broj pošiljke.",
+                        text = if (s10ValidacijaUkljucena) {
+                            "Neispravan broj. Provjeri broj pošiljke."
+                        } else {
+                            "Dozvoljena su samo slova i brojevi, najviše 32 znaka."
+                        },
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 13.sp
                     )
@@ -170,7 +215,7 @@ fun MainScreen(radnikData: RadnikData) {
             }
             Button(
                 onClick = { pokusajGenerisanja() },
-                enabled = jeS10BrojValjan,
+                enabled = unosJeValjanZaGenerisanje,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(60.dp),

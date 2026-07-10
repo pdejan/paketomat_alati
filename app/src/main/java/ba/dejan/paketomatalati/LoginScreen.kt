@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,9 +42,14 @@ fun LoginScreen(
     var imeRadnika by remember { mutableStateOf("") }
     var barCodeSifra by remember { mutableStateOf("") }
     var sifraRadnika by remember { mutableStateOf("") }
+    var pinImaGresku by remember { mutableStateOf(false) }
+    var cuvanjeUToku by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val scanner = remember { GmsBarcodeScanning.getClient(context) }
+    val moduleInstall = remember { ModuleInstall.getClient(context) }
     var skenerSePriprema by remember { mutableStateOf(false) }
+    var aktivnaInstalacijaSkenera by remember { mutableStateOf<ScannerInstallSession?>(null) }
+    val zivotniVijekEkrana = remember { ScannerInstallSession(onUnregister = {}) }
     val activityWindow = context.findActivity()?.window
     DisposableEffect(activityWindow) {
         val secureFlag = WindowManager.LayoutParams.FLAG_SECURE
@@ -52,44 +58,70 @@ fun LoginScreen(
         activityWindow?.addFlags(secureFlag)
         onDispose {
             if (!secureFlagJeVecBioPostavljen) {
-                activityWindow?.clearFlags(secureFlag)
+                activityWindow.clearFlags(secureFlag)
             }
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            zivotniVijekEkrana.dispose()
+            aktivnaInstalacijaSkenera?.dispose()
         }
     }
     fun pokreniSkeniranje() {
         scanner.startScan()
             .addOnSuccessListener { barcode ->
+                if (!zivotniVijekEkrana.isActive) return@addOnSuccessListener
                 barcode.rawValue?.let { skeniraniKod ->
                     barCodeSifra = normalizujQrPayload(skeniraniKod)
                 }
             }
             .addOnFailureListener {
+                if (!zivotniVijekEkrana.isActive) return@addOnFailureListener
                 Toast.makeText(context, "Skener nije dostupan. Pokušaj ponovo ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
             }
     }
     fun skenirajIliPripremiSkener() {
-        if (skenerSePriprema) return
-        val moduleInstall = ModuleInstall.getClient(context)
+        if (skenerSePriprema || !zivotniVijekEkrana.isActive) return
+        skenerSePriprema = true
+        var statusListener: InstallStatusListener? = null
+        lateinit var sesija: ScannerInstallSession
+        sesija = ScannerInstallSession(
+            onUnregister = {
+                statusListener?.let(moduleInstall::unregisterListener)
+            }
+        )
+        aktivnaInstalacijaSkenera?.dispose()
+        aktivnaInstalacijaSkenera = sesija
+
+        fun zavrsiSesiju(akcija: () -> Unit) {
+            sesija.finish {
+                if (aktivnaInstalacijaSkenera === sesija) {
+                    aktivnaInstalacijaSkenera = null
+                }
+                skenerSePriprema = false
+                if (zivotniVijekEkrana.isActive) akcija()
+            }
+        }
+
+        val prijaviGreskuPripreme = {
+            zavrsiSesiju {
+                Toast.makeText(context, "Skener se ne može preuzeti. Provjeri internet konekciju ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
+            }
+        }
+
         moduleInstall.areModulesAvailable(scanner)
             .addOnSuccessListener { rezultat ->
+                if (!sesija.isActive) return@addOnSuccessListener
                 if (rezultat.areModulesAvailable()) {
-                    pokreniSkeniranje()
+                    zavrsiSesiju { pokreniSkeniranje() }
                 } else {
-                    skenerSePriprema = true
                     Toast.makeText(context, "Preuzimanje skenera, ovo može potrajati nekoliko sekundi…", Toast.LENGTH_LONG).show()
-                    lateinit var statusListener: InstallStatusListener
-                    val prijaviGreskuPripreme = {
-                        skenerSePriprema = false
-                        moduleInstall.unregisterListener(statusListener)
-                        Toast.makeText(context, "Skener se ne može preuzeti. Provjeri internet konekciju ili učitaj iz galerije.", Toast.LENGTH_LONG).show()
-                    }
-                    statusListener = object : InstallStatusListener {
+                    val listener = object : InstallStatusListener {
                         override fun onInstallStatusUpdated(status: ModuleInstallStatusUpdate) {
                             when (status.installState) {
                                 ModuleInstallStatusUpdate.InstallState.STATE_COMPLETED -> {
-                                    skenerSePriprema = false
-                                    moduleInstall.unregisterListener(this)
-                                    pokreniSkeniranje()
+                                    zavrsiSesiju { pokreniSkeniranje() }
                                 }
                                 ModuleInstallStatusUpdate.InstallState.STATE_FAILED,
                                 ModuleInstallStatusUpdate.InstallState.STATE_CANCELED -> {
@@ -98,16 +130,15 @@ fun LoginScreen(
                             }
                         }
                     }
+                    statusListener = listener
                     val zahtjev = ModuleInstallRequest.newBuilder()
                         .addApi(scanner)
-                        .setListener(statusListener)
+                        .setListener(listener)
                         .build()
                     moduleInstall.installModules(zahtjev)
                         .addOnSuccessListener { odgovor ->
                             if (odgovor.areModulesAlreadyInstalled()) {
-                                skenerSePriprema = false
-                                moduleInstall.unregisterListener(statusListener)
-                                pokreniSkeniranje()
+                                zavrsiSesiju { pokreniSkeniranje() }
                             }
                         }
                         .addOnFailureListener {
@@ -116,7 +147,7 @@ fun LoginScreen(
                 }
             }
             .addOnFailureListener {
-                pokreniSkeniranje()
+                zavrsiSesiju { pokreniSkeniranje() }
             }
     }
     val slikaLauncher = rememberLauncherForActivityResult(
@@ -128,6 +159,7 @@ fun LoginScreen(
                 val lokalniScanner = BarcodeScanning.getClient()
                 lokalniScanner.process(image)
                     .addOnSuccessListener { barcodes ->
+                        if (!zivotniVijekEkrana.isActive) return@addOnSuccessListener
                         if (barcodes.isNotEmpty()) {
                             barcodes.first().rawValue?.let { skeniraniTekst ->
                                 barCodeSifra = normalizujQrPayload(skeniraniTekst)
@@ -138,6 +170,7 @@ fun LoginScreen(
                         }
                     }
                     .addOnFailureListener {
+                        if (!zivotniVijekEkrana.isActive) return@addOnFailureListener
                         Toast.makeText(context, "Greška prilikom analize slike!", Toast.LENGTH_SHORT).show()
                     }
                     .addOnCompleteListener {
@@ -245,29 +278,76 @@ fun LoginScreen(
         OutlinedTextField(
             value = sifraRadnika,
             onValueChange = { noviUnos ->
-                val samoBrojevi = noviUnos.filter {it.isDigit()}
-                if (samoBrojevi.length <= 20){
-                    sifraRadnika = samoBrojevi
+                when {
+                    noviUnos.isEmpty() -> {
+                        sifraRadnika = ""
+                        pinImaGresku = false
+                    }
+                    pinJeValjan(noviUnos) -> {
+                        sifraRadnika = noviUnos
+                        pinImaGresku = false
+                    }
+                    else -> {
+                        pinImaGresku = true
+                    }
                 }
             },
             label = { Text("Šifra") },
             visualTransformation = VisualTransformation.None,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("pin_field"),
             singleLine = true,
+            isError = pinImaGresku,
             colors = fieldColors,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number
             )
         )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (pinImaGresku) {
+                Text(
+                    text = "Šifra može sadržati samo cifre 0–9.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp
+                )
+            }
+        }
         Button(
             onClick = {
-                if (imeRadnika.isNotBlank() && barCodeSifra.isNotBlank() && sifraRadnika.isNotBlank()) {
+                if (
+                    imeRadnika.isNotBlank() &&
+                    barCodeSifra.isNotBlank() &&
+                    pinJeValjan(sifraRadnika) &&
+                    !pinImaGresku
+                ) {
+                    cuvanjeUToku = true
                     coroutineScope.launch {
-                        userPreferences.sacuvajPodatke(
-                            ime = imeRadnika,
-                            barCode = barCodeSifra,
-                            sifra = sifraRadnika
-                        )
+                        try {
+                            when (
+                                userPreferences.sacuvajPodatke(
+                                    ime = imeRadnika,
+                                    barCode = barCodeSifra,
+                                    sifra = sifraRadnika
+                                )
+                            ) {
+                                RezultatOperacijePodataka.Uspjeh -> Unit
+                                is RezultatOperacijePodataka.Greska -> {
+                                    Toast.makeText(
+                                        context,
+                                        "Podaci se ne mogu sačuvati. Pokušaj ponovo.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } finally {
+                            cuvanjeUToku = false
+                        }
                     }
                 } else {
                     Toast.makeText(context, "Unesi sve podatke!", Toast.LENGTH_SHORT).show()
@@ -276,17 +356,26 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(55.dp),
+            enabled = !cuvanjeUToku,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MainColor,
                 contentColor = SecondaryColor
             ),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Text(
-                text = "PRIJAVI SE",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (cuvanjeUToku) {
+                CircularProgressIndicator(
+                    color = SecondaryColor,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text(
+                    text = "PRIJAVI SE",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

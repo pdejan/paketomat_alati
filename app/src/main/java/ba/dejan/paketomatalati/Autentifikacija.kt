@@ -6,6 +6,40 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
+enum class IshodTerminalneGreskeAutentifikacije {
+    ZADRZI_ZATVORENO,
+    PROPUSTI_KORISNIKA
+}
+
+enum class DostupnostAutentifikacije {
+    DOSTUPNA,
+    NEDOSTUPNA
+}
+
+fun provjeriDostupnostAutentifikacije(
+    provjera: () -> Boolean
+): DostupnostAutentifikacije =
+    try {
+        if (provjera()) {
+            DostupnostAutentifikacije.DOSTUPNA
+        } else {
+            DostupnostAutentifikacije.NEDOSTUPNA
+        }
+    } catch (greska: Exception) {
+        DostupnostAutentifikacije.NEDOSTUPNA
+    }
+
+fun klasifikujTerminalnuGreskuAutentifikacije(
+    kodGreske: Int
+): IshodTerminalneGreskeAutentifikacije =
+    when (kodGreske) {
+        BiometricPrompt.ERROR_USER_CANCELED,
+        BiometricPrompt.ERROR_NEGATIVE_BUTTON,
+        BiometricPrompt.ERROR_CANCELED ->
+            IshodTerminalneGreskeAutentifikacije.ZADRZI_ZATVORENO
+        else -> IshodTerminalneGreskeAutentifikacije.PROPUSTI_KORISNIKA
+    }
+
 /**
  * Traži potvrdu identiteta (otisak/lice ili PIN/šablon/lozinka uređaja) prije prikaza
  * osjetljivih podataka (prijava na paketomat).
@@ -17,10 +51,12 @@ import androidx.fragment.app.FragmentActivity
 fun zatraziAutentifikaciju(activity: FragmentActivity, onUspjeh: () -> Unit) {
     val dozvoljeno = Authenticators.BIOMETRIC_WEAK or Authenticators.DEVICE_CREDENTIAL
 
-    val mozeAutentifikovati = BiometricManager.from(activity)
-        .canAuthenticate(dozvoljeno) == BiometricManager.BIOMETRIC_SUCCESS
+    val dostupnost = provjeriDostupnostAutentifikacije {
+        BiometricManager.from(activity)
+            .canAuthenticate(dozvoljeno) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
-    if (!mozeAutentifikovati) {
+    if (dostupnost == DostupnostAutentifikacije.NEDOSTUPNA) {
         onUspjeh()
         return
     }
@@ -36,6 +72,15 @@ fun zatraziAutentifikaciju(activity: FragmentActivity, onUspjeh: () -> Unit) {
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     onUspjeh()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (
+                        klasifikujTerminalnuGreskuAutentifikacije(errorCode) ==
+                        IshodTerminalneGreskeAutentifikacije.PROPUSTI_KORISNIKA
+                    ) {
+                        onUspjeh()
+                    }
                 }
             }
         )

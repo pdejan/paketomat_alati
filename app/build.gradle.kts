@@ -5,14 +5,14 @@ plugins {
 android {
     namespace = "ba.dejan.paketomatalati"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 0
         }
     }
     defaultConfig {
         applicationId = "ba.dejan.paketomatalati"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 11
         versionName = "1.8"
 
@@ -21,6 +21,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -54,6 +55,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.zxing.core)
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.play.services.code.scanner)
 }

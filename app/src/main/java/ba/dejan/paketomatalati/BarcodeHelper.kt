@@ -1,6 +1,7 @@
 package ba.dejan.paketomatalati
 
 import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -18,7 +19,7 @@ fun generateCode128(text: String): ImageBitmap? =
 fun generateQrCode(text: String): ImageBitmap? =
     generisiKod(
         text, BarcodeFormat.QR_CODE, width = 1440, height = 1440,
-        hints = mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L)
+        hints = mapOf(EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M)
     )
 private fun generisiKod(
     text: String,
@@ -44,7 +45,7 @@ private fun BitMatrix.toImageBitmap(): ImageBitmap {
             pixels[offset + x] = if (this[x, y]) bojaKoda else bojaPozadine
         }
     }
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
     bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
     return bitmap.asImageBitmap()
 }

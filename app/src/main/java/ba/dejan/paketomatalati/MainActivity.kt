@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ class MainActivity : FragmentActivity() {
                     when (val trenutnoStanje = stanje) {
                         is RadnikStanje.Ucitavanje -> SplashScreen()
                         is RadnikStanje.Odjavljen -> LoginScreen(userPreferences = userPreferences)
+                        is RadnikStanje.GreskaCitanja -> GreskaCitanjaScreen()
                         is RadnikStanje.GreskaPodataka -> {
                             val context = LocalContext.current
                             LaunchedEffect(Unit) {
@@ -42,7 +44,16 @@ class MainActivity : FragmentActivity() {
                                     "Sačuvani podaci se ne mogu pročitati. Unesi podatke ponovo.",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                userPreferences.obrisiPodatke()
+                                if (
+                                    userPreferences.obrisiPodatke() is
+                                    RezultatOperacijePodataka.Greska
+                                ) {
+                                    Toast.makeText(
+                                        context,
+                                        "Podaci se trenutno ne mogu obrisati. Pokušaj ponovo.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                             LoginScreen(userPreferences = userPreferences)
                         }
@@ -56,6 +67,34 @@ class MainActivity : FragmentActivity() {
         }
     }
 }
+
+@Composable
+private fun GreskaCitanjaScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator(color = MainColor)
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "Sačuvani podaci se trenutno ne mogu učitati.",
+            color = SecondaryColor,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Aplikacija će pokušati ponovo bez brisanja podataka.",
+            color = Color.Gray,
+            fontSize = 14.sp
+        )
+    }
+}
+
 @Composable
 fun SplashScreen() {
     Box(
@@ -76,6 +115,12 @@ private enum class Ekran { Glavni, Postavke }
 @Composable
 fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences) {
     var trenutniEkran by remember { mutableStateOf(Ekran.Glavni) }
+    val s10ValidacijaUkljucena by userPreferences.s10ValidacijaUkljucenaFlow.collectAsState(
+        initial = true
+    )
+    BackHandler(enabled = trenutniEkran == Ekran.Postavke) {
+        trenutniEkran = Ekran.Glavni
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,7 +154,11 @@ fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences)
             }) {
                 Icon(
                     painter = if (trenutniEkran == Ekran.Glavni) painterResource(id = R.drawable.icon_settings) else painterResource(id = R.drawable.icon_arrow_back),
-                    contentDescription = "Navigacija",
+                    contentDescription = if (trenutniEkran == Ekran.Glavni) {
+                        "Otvori postavke"
+                    } else {
+                        "Nazad na glavni ekran"
+                    },
                     tint = Color.Gray,
                     modifier = Modifier.size(32.dp)
                 )
@@ -117,8 +166,15 @@ fun UlogovaniInterfejs(radnikData: RadnikData, userPreferences: UserPreferences)
         }
         Box(modifier = Modifier.weight(1f)) {
             when (trenutniEkran) {
-                Ekran.Glavni -> MainScreen(radnikData = radnikData)
-                Ekran.Postavke -> SettingsScreen(radnikData = radnikData, userPreferences = userPreferences)
+                Ekran.Glavni -> MainScreen(
+                    radnikData = radnikData,
+                    s10ValidacijaUkljucena = s10ValidacijaUkljucena
+                )
+                Ekran.Postavke -> SettingsScreen(
+                    radnikData = radnikData,
+                    userPreferences = userPreferences,
+                    s10ValidacijaUkljucena = s10ValidacijaUkljucena
+                )
             }
         }
     }
