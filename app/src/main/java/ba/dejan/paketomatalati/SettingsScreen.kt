@@ -67,7 +67,7 @@ fun SettingsScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Ime i prezime: ${radnikData.ime}",
                     fontSize = 15.sp,

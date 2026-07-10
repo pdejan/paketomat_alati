@@ -13,8 +13,8 @@ android {
         applicationId = "ba.dejan.paketomatalati"
         minSdk = 24
         targetSdk = 37
-        versionCode = 11
-        versionName = "1.8"
+        versionCode = 12
+        versionName = "1.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
